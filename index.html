@@ -890,8 +890,8 @@ function updateClock() {
   // Check PTJ notifications
   checkPTJNotifications(h, m);
 
-  // Update PTJ list
-  renderPTJList();
+  // Update PTJ statuses in-place (don't rebuild DOM, preserves open file pickers)
+  updatePTJStatuses();
   updateNextJobBanner();
 }
 
@@ -1098,6 +1098,30 @@ function fmtH(h) {
   return h12 + ':00 ' + (hh < 12 ? 'AM' : 'PM');
 }
 
+// Lightweight in-place status update — does NOT rebuild DOM (preserves open panels/pickers)
+function updatePTJStatuses() {
+  const list = document.getElementById('ptj-list');
+  if (!list) return;
+  list.querySelectorAll('.ptj-item[data-npc-id]').forEach(li => {
+    const id = parseInt(li.dataset.npcId);
+    const npc = ALL_NPCS.find(n => n.id === id);
+    if (!npc) return;
+    const status = getJobStatus(npc);
+    // Update classes
+    li.classList.remove('active', 'upcoming', 'inactive');
+    li.classList.add(status);
+    // Update dot
+    const dot = li.querySelector('.ptj-dot');
+    if (dot) { dot.className = `ptj-dot dot-${status}`; }
+    // Update badge
+    const badge = li.querySelector('.ptj-status');
+    if (badge) {
+      badge.className = `ptj-status status-${status === 'inactive' ? 'done' : status}`;
+      badge.textContent = status === 'active' ? 'OPEN' : status === 'upcoming' ? 'SOON' : 'CLOSED';
+    }
+  });
+}
+
 function renderPTJList() {
   const list = document.getElementById('ptj-list');
   if (!list) return;
@@ -1129,6 +1153,7 @@ function renderPTJList() {
     const hasSnd = !!jobSounds[npc.id] || !!localStorage.getItem(`erinn_jsound_${npc.id}`);
     const li = document.createElement('li');
     li.className = `ptj-item ${status}`;
+    li.dataset.npcId = npc.id;
     li.style.flexWrap = 'wrap';
     li.innerHTML = `
       <div class="ptj-dot dot-${status}" style="flex-shrink:0;"></div>
