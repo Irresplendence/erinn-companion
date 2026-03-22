@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Erinn Companion">
+<title>Erinn Companion</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #7d8590;
+    --text-dim: #484f58;
+    --gold: #d4a843;
+    --gold-dim: #8a6a24;
+    --gold-glow: rgba(212,168,67,0.15);
+    --teal: #39d0b8;
+    --teal-dim: #1a6e62;
+    --teal-glow: rgba(57,208,184,0.12);
+    --red: #e05c5c;
+    --red-dim: #6b2424;
+    --green: #56d364;
+    --green-dim: #1a5c25;
+    --purple: #a371f7;
+    --radius: 12px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f3efe8;
+      --surface: #fdf8f0;
+      --surface2: #f0e9db;
+      --border: #d4c9b0;
+      --text: #2c2416;
+      --text-muted: #7a6a50;
+      --text-dim: #b0a08a;
+      --gold: #9a6f1a;
+      --gold-dim: #c8a84a;
+      --gold-glow: rgba(154,111,26,0.1);
+      --teal: #1a7a6e;
+      --teal-dim: #a0d8d0;
+      --teal-glow: rgba(26,122,110,0.1);
+      --red: #c0392b;
+      --red-dim: #f5c6c6;
+      --green: #217a30;
+      --green-dim: #c0ecc8;
+      --purple: #6941c6;
+      --shadow: 0 4px 24px rgba(0,0,0,0.1);
+    }
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100dvh;
+  }
+
+  /* Subtle parchment texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 16px;
+    padding-bottom: 80px;
+  }
+
+  /* ── Header ── */
+  header {
+    text-align: center;
+    padding: 24px 0 20px;
+    margin-bottom: 20px;
+  }
+  header h1 {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--gold);
+    text-shadow: 0 0 30px var(--gold-glow);
+  }
+  header p {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 4px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    opacity: 0.5;
+  }
+  .card-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .icon { font-size: 1rem; }
+
+  /* ── Erinn Clock Card ── */
+  .clock-display {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .clock-time {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(2.8rem, 10vw, 4rem);
+    font-weight: 700;
+    color: var(--gold);
+    text-shadow: 0 0 40px var(--gold-glow);
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+  .clock-ampm {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    color: var(--gold-dim);
+    font-weight: 600;
+  }
+  .clock-meta {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 14px;
+  }
+  .day-progress {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .day-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+    border-radius: 3px;
+    transition: width 1s linear;
+  }
+  .day-progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+  }
+  .phase-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin-top: 10px;
+  }
+  .phase-day   { background: rgba(212,168,67,0.15); color: var(--gold); border: 1px solid var(--gold-dim); }
+  .phase-night { background: rgba(163,113,247,0.12); color: var(--purple); border: 1px solid rgba(163,113,247,0.3); }
+  .real-time {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin-top: 8px;
+  }
+
+  /* ── PTJ Card ── */
+  .ptj-list { list-style: none; }
+  .ptj-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    transition: border-color 0.3s;
+    position: relative;
+  }
+  .ptj-item.active   { border-color: var(--green);  background: var(--green-dim); }
+  .ptj-item.upcoming { border-color: var(--gold-dim); }
+  .ptj-item.inactive { opacity: 0.5; }
+  .ptj-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-active   { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot-upcoming { background: var(--gold); }
+  .dot-inactive { background: var(--text-dim); }
+  .ptj-name { flex: 1; font-weight: 600; font-size: 0.95rem; }
+  .ptj-time { font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+  .ptj-status {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 12px;
+  }
+  .status-active   { background: var(--green-dim); color: var(--green); }
+  .status-upcoming { background: var(--gold-glow); color: var(--gold); }
+  .status-done     { background: var(--surface); color: var(--text-dim); }
+  .ptj-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-dim);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .ptj-toggle:hover { color: var(--red); }
+  .ptj-add-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .ptj-add-row input, .ptj-add-row select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    flex: 1;
+    min-width: 80px;
+  }
+  .ptj-add-row input:focus, .ptj-add-row select:focus {
+    outline: none;
+    border-color: var(--gold-dim);
+  }
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    transition: all 0.2s;
+  }
+  .btn-gold {
+    background: linear-gradient(135deg, var(--gold-dim), var(--gold));
+    color: #1a1200;
+  }
+  .btn-gold:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .btn-outline:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .btn-teal {
+    background: linear-gradient(135deg, var(--teal-dim), var(--teal));
+    color: #001a17;
+  }
+  .btn-danger {
+    background: var(--red-dim);
+    color: var(--red);
+    border: 1px solid var(--red);
+  }
+
+  /* ── Phantasmal Sight ── */
+  .sight-display {
+    text-align: center;
+    padding: 10px 0;
+  }
+  .sight-ring {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    margin: 0 auto 16px;
+  }
+  .sight-ring svg {
+    transform: rotate(-90deg);
+  }
+  .sight-ring-track {
+    fill: none;
+    stroke: var(--surface2);
+    stroke-width: 8;
+  }
+  .sight-ring-fill {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear, stroke 0.5s;
+  }
+  .sight-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .sight-time-text {
+    font-family: 'Cinzel', serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .sight-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .sight-btn {
+    display: block;
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
+    padding: 12px;
+    font-size: 0.85rem;
+    border-radius: 10px;
+  }
+  .sight-history {
+    margin-top: 14px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  /* ── Barter Stub ── */
+  .stub-content {
+    text-align: center;
+    padding: 24px 0;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+  .stub-content .stub-icon { font-size: 2.5rem; margin-bottom: 10px; display: block; }
+
+  /* ── Settings ── */
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-label { font-size: 0.9rem; }
+  .settings-sub { font-size: 0.78rem; color: var(--text-muted); font-style: italic; }
+  .settings-row input[type="text"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    width: 180px;
+  }
+  .settings-row input[type="text"]:focus {
+    outline: none;
+    border-color: var(--teal-dim);
+  }
+  .toggle-switch {
+    position: relative;
+    width: 44px; height: 24px;
+    flex-shrink: 0;
+  }
+  .toggle-switch input { display: none; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--surface2);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.3s;
+    border: 1px solid var(--border);
+  }
+  .toggle-slider::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: transform 0.3s, background 0.3s;
+  }
+  .toggle-switch input:checked + .toggle-slider { background: var(--teal-dim); border-color: var(--teal); }
+  .toggle-switch input:checked + .toggle-slider::after { transform: translateX(20px); background: var(--teal); }
+
+  /* ── Toast ── */
+  #toast-container {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.85rem;
+    box-shadow: var(--shadow);
+    animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+    max-width: 300px;
+    text-align: center;
+  }
+  @keyframes toastIn  { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes toastOut { to   { opacity: 0; transform: translateY(10px); } }
+
+  /* ── Nav tabs (bottom) ── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+  }
+  .nav-btn {
+    flex: 1;
+    padding: 10px 4px 12px;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.62rem;
+    letter-spacing: 0.05em;
+    transition: color 0.2s;
+  }
+  .nav-btn .nav-icon { font-size: 1.2rem; }
+  .nav-btn.active { color: var(--gold); }
+
+  /* ── Sections ── */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ── Pulse animation for active items ── */
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(86, 211, 100, 0.3); }
+    50% { box-shadow: 0 0 0 6px rgba(86, 211, 100, 0); }
+  }
+  .ptj-item.active { animation: pulse-glow 2s infinite; }
+
+  /* Next job countdown */
+  .next-job-row {
+    background: var(--gold-glow);
+    border: 1px solid var(--gold-dim);
+    border-radius: 8px;
+    padding: 8px 14px;
+    margin-bottom: 14px;
+    font-size: 0.85rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .next-job-label { color: var(--text-muted); font-style: italic; }
+  .next-job-time  { font-family: 'Cinzel', serif; font-weight: 600; color: var(--gold); }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 14px 0;
+  }
+  .section-subhead {
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div class="app">
+  <header>
+    <h1>⚔ Erinn Companion</h1>
+    <p>Your Mabinogi dashboard — Tir Chonaill to Emain Macha</p>
+  </header>
+
+  <!-- ═══════════════ CLOCK SECTION ═══════════════ -->
+  <div id="section-clock" class="section active">
+    <div class="card">
+      <div class="card-title"><span class="icon">🕐</span> Erinn Time</div>
+      <div class="clock-display">
+        <div class="clock-time" id="erinn-time">--:--</div>
+        <div class="clock-ampm" id="erinn-ampm">--</div>
+      </div>
+      <div class="clock-meta" id="erinn-phase-text">Loading…</div>
+      <div class="day-progress">
+        <div class="day-progress-fill" id="day-bar" style="width:0%"></div>
+      </div>
+      <div class="day-progress-label">
+        <span>12:00 AM</span>
+        <span id="next-event-label">Next event</span>
+        <span>11:59 PM</span>
+      </div>
+      <div style="text-align:center; margin-top:12px;">
+        <span class="phase-badge" id="phase-badge">—</span>
+      </div>
+      <div class="real-time" id="real-time-display">Real: --:--:--</div>
+      <div style="text-align:center; margin-top:12px;">
+        <button class="btn btn-outline" onclick="openSyncModal()" style="font-size:0.75rem; padding:6px 14px;">
+          🔧 Sync Erinn Time
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="card" style="padding: 14px 20px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div style="text-align:center;">
+          <div style="font-size:0.75rem; color:var(--text-muted); font-style:italic; margin-bottom:4px;">Erinn Day #</div>
+          <div style="font-family:'Cinzel',serif; font-size:1.3rem; color:var(--gold);" id="erinn-day-num">—</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:0.75rem; color:var(--text-muted); font-style:italic; margin-bottom:4px;">Next Day In</div>
+          <div style="font-family:'Cinzel',serif; font-size:1.3rem; color:var(--teal);" id="next-day-countdown">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JOBS SECTION -->
+  <div id="section-jobs" class="section">
+    <div class="card">
+      <div class="card-title"><span class="icon">💼</span> Part-Time Jobs</div>
+
+      <div class="next-job-row" id="next-job-banner" style="display:none;">
+        <span class="next-job-label">Next job opens:</span>
+        <span class="next-job-time" id="next-job-time-text">—</span>
+      </div>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; align-items:center;">
+        <select id="ptj-filter-loc" onchange="renderPTJList()" style="flex:1; min-width:120px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:6px 8px; font-family:inherit; font-size:0.82rem;">
+          <option value="">All Locations</option>
+          <option>Tir Chonaill</option><option>Dunbarton</option><option>Bangor</option>
+          <option>Emain Macha</option><option>Qilla Base Camp</option><option>Filia</option>
+          <option>Vales</option><option>Calida Exploration Camp</option><option>Taillteann</option>
+          <option>Tara</option><option>Port Cobh</option><option>Commonwealth of Belvast</option>
+        </select>
+        <select id="ptj-filter-show" onchange="renderPTJList()" style="flex:1; min-width:110px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:6px 8px; font-family:inherit; font-size:0.82rem;">
+          <option value="tracked">My Tracked Jobs</option>
+          <option value="all">All NPCs</option>
+        </select>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; padding:8px 12px; background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
+        <span style="font-size:0.82rem; color:var(--text-muted); flex:1;">🔔 Remind me</span>
+        <select id="ptj-remind-before" onchange="saveSettings()" style="background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--gold); padding:4px 8px; font-family:'Cinzel',serif; font-size:0.8rem; font-weight:600;">
+          <option value="0">at start</option>
+          <option value="1">1h before</option>
+          <option value="2" selected>2h before</option>
+          <option value="3">3h before</option>
+          <option value="5">5h before</option>
+        </select>
+        <span style="font-size:0.82rem; color:var(--text-muted);">job opens</span>
+      </div>
+
+      <p class="section-subhead" id="ptj-list-label">Tracked Jobs</p>
+      <ul class="ptj-list" id="ptj-list"></ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SKILLS SECTION ═══════════════ -->
+  <div id="section-skills" class="section">
+    <!-- Phantasmal Sight -->
+    <div class="card">
+      <div class="card-title"><span class="icon">👁</span> Phantasmal Sight</div>
+      <div class="sight-display">
+        <div class="sight-ring">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle class="sight-ring-track" cx="70" cy="70" r="58"/>
+            <circle class="sight-ring-fill" id="sight-ring-fill" cx="70" cy="70" r="58"
+              stroke-dasharray="364.4"
+              stroke-dashoffset="364.4"
+              stroke="var(--teal)"/>
+          </svg>
+          <div class="sight-center">
+            <div class="sight-time-text" id="sight-time-text" style="color:var(--text-dim);">READY</div>
+            <div class="sight-label" id="sight-phase-label">Phantasmal</div>
+          </div>
+        </div>
+        <button class="btn btn-teal sight-btn" id="sight-btn" onclick="activateSight()">▶ Activate</button>
+        <div class="sight-history" id="sight-history">Not yet used this session</div>
+      </div>
+    </div>
+
+    <!-- Future skill stub -->
+    <div class="card">
+      <div class="card-title"><span class="icon">⏱</span> Skill Tracker 2</div>
+      <div class="stub-content">
+        <span class="stub-icon">🔮</span>
+        <div>Another skill coming soon…</div>
+        <div style="margin-top:6px;font-size:0.75rem;">Suggest one in Settings!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ BARTER SECTION ═══════════════ -->
+  <div id="section-barter" class="section">
+    <div class="card">
+      <div class="card-title"><span class="icon">🪙</span> Barter Goods</div>
+      <div class="stub-content">
+        <span class="stub-icon">🛶</span>
+        <div>Barter tracker coming soon.</div>
+        <div style="margin-top:8px; font-size:0.8rem; max-width:260px; margin-left:auto; margin-right:auto;">
+          This module will track which barter goods you've traded and when the next barter cycle begins.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SETTINGS SECTION ═══════════════ -->
+  <div id="section-settings" class="section">
+    <div class="card">
+      <div class="card-title"><span class="icon">🔔</span> Notifications</div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">Desktop Notifications</div>
+          <div class="settings-sub">Browser pop-ups with sound</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="setting-desktop" checked onchange="saveSettings()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">ntfy.sh Topic</div>
+          <div class="settings-sub">For phone push notifications</div>
+        </div>
+        <input type="text" id="ntfy-topic" placeholder="my-erinn-companion" oninput="saveSettings()">
+      </div>
+
+      <div class="settings-row">
+        <div>
+          <div class="settings-label">ntfy.sh Server</div>
+          <div class="settings-sub">Leave default unless self-hosting</div>
+        </div>
+        <input type="text" id="ntfy-server" value="https://ntfy.sh" oninput="saveSettings()">
+      </div>
+
+      <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-teal" onclick="testNtfy()">📱 Test Phone Notification</button>
+        <button class="btn btn-outline" onclick="requestNotifPerms()">🔔 Enable Desktop</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📱</span> How to Use on Mobile</div>
+      <div style="font-size:0.88rem; line-height:1.7; color:var(--text-muted);">
+        <p style="margin-bottom:8px;"><strong style="color:var(--text);">Add to Home Screen</strong></p>
+        <p>• <em>iOS Safari:</em> Tap Share → "Add to Home Screen"</p>
+        <p>• <em>Android Chrome:</em> Tap ⋮ → "Add to Home Screen"</p>
+        <p style="margin-top:10px; margin-bottom:8px;"><strong style="color:var(--text);">Phone Notifications via ntfy.sh</strong></p>
+        <p>1. Install the <strong>ntfy</strong> app (iOS / Android, free)</p>
+        <p>2. Subscribe to your topic name above</p>
+        <p>3. Set your topic in Settings ↑</p>
+        <p>4. Notifications fire even when dashboard is closed!</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">⚙</span> Data</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-outline" onclick="exportData()">💾 Export Jobs</button>
+        <button class="btn btn-danger" onclick="clearAllData()">🗑 Clear All Data</button>
+      </div>
+    </div>
+  </div>
+</div><!-- end .app -->
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="showSection('clock',this)">
+    <span class="nav-icon">🕐</span>Clock
+  </button>
+  <button class="nav-btn" onclick="showSection('jobs',this)">
+    <span class="nav-icon">💼</span>Jobs
+  </button>
+  <button class="nav-btn" onclick="showSection('skills',this)">
+    <span class="nav-icon">👁</span>Skills
+  </button>
+  <button class="nav-btn" onclick="showSection('barter',this)">
+    <span class="nav-icon">🪙</span>Barter
+  </button>
+  <button class="nav-btn" onclick="showSection('settings',this)">
+    <span class="nav-icon">⚙</span>Settings
+  </button>
+</nav>
+
+<script>
+// ═══════════════════════════════════════════════
+//  ERINN TIME ENGINE
+// ═══════════════════════════════════════════════
+const ERINN_DAY_MS = 36 * 60 * 1000; // 36 real minutes = 1 Erinn day
+const ERINN_MIN_MS = 1500;            // 1500ms real = 1 Erinn minute
+
+// Calibration offset: how many real ms to subtract so the formula lines up with in-game time
+let erinnOffset = 0; // loaded from localStorage
+
+function loadOffset() {
+  try {
+    const saved = localStorage.getItem('erinn_offset');
+    if (saved !== null) erinnOffset = parseInt(saved);
+  } catch(e) {}
+}
+
+function saveOffset(ms) {
+  erinnOffset = ms;
+  localStorage.setItem('erinn_offset', ms);
+}
+
+function getErinnTime(date = new Date()) {
+  const realMs = date.getTime() - erinnOffset;
+  const erinnMinutes = (realMs / ERINN_MIN_MS) % (24 * 60);
+  const h = Math.floor(erinnMinutes / 60);
+  const m = Math.floor(erinnMinutes % 60);
+  const totalErinnDays = Math.floor(realMs / ERINN_DAY_MS);
+  const progress = erinnMinutes / (24 * 60);
+  return { h, m, totalErinnDays, progress, erinnMinutes };
+}
+
+// Sync: given a target Erinn h/m, compute the offset so getErinnTime() returns that right now
+function calibrateToErinnTime(targetH, targetM) {
+  const now = Date.now();
+  // What raw erinnMinutes (mod 1440) do we want?
+  const targetErinnMins = targetH * 60 + targetM;
+  // Current raw erinnMinutes without offset
+  const rawErinnMins = (now / ERINN_MIN_MS) % (24 * 60);
+  // Difference (how many erinn minutes we're off)
+  let diff = rawErinnMins - targetErinnMins;
+  if (diff < 0) diff += 24 * 60;
+  // Convert erinn minute diff to real ms offset
+  const offsetMs = Math.round(diff * ERINN_MIN_MS);
+  saveOffset(offsetMs);
+  const label = `${String(targetH).padStart(2,'0')}:${String(targetM).padStart(2,'0')}`;
+  showToast(`✅ Synced to Erinn ${label}`);
+}
+
+function openSyncModal() {
+  const { h, m } = getErinnTime();
+  const modal = document.getElementById('sync-modal');
+  document.getElementById('sync-h').value = h;
+  document.getElementById('sync-m').value = m;
+  modal.style.display = 'flex';
+  document.getElementById('sync-h').focus();
+}
+
+function closeSyncModal() {
+  document.getElementById('sync-modal').style.display = 'none';
+}
+
+function confirmSync() {
+  const h = parseInt(document.getElementById('sync-h').value);
+  const m = parseInt(document.getElementById('sync-m').value);
+  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) {
+    showToast('⚠ Invalid time — use 0-23 for hour, 0-59 for minute');
+    return;
+  }
+  calibrateToErinnTime(h, m);
+  closeSyncModal();
+}
+
+function formatEH(h, m) {
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const mm = String(m).padStart(2, '0');
+  return { display: `${h12}:${mm}`, ampm: h < 12 ? 'AM' : 'PM' };
+}
+
+// ═══════════════════════════════════════════════
+//  CLOCK UPDATE
+// ═══════════════════════════════════════════════
+let lastNotifiedEvents = {};
+
+function updateClock() {
+  const now = new Date();
+  const { h, m, totalErinnDays, progress, erinnMinutes } = getErinnTime(now);
+  const { display, ampm } = formatEH(h, m);
+
+  document.getElementById('erinn-time').textContent = display;
+  document.getElementById('erinn-ampm').textContent = ampm;
+  document.getElementById('day-bar').style.width = (progress * 100).toFixed(2) + '%';
+  document.getElementById('erinn-day-num').textContent = '#' + totalErinnDays;
+
+  // Phase
+  const isDay = h >= 6 && h < 18;
+  const badge = document.getElementById('phase-badge');
+  if (isDay) {
+    badge.textContent = '☀ Daytime';
+    badge.className = 'phase-badge phase-day';
+    document.getElementById('erinn-phase-text').textContent = 'Daylight hours — from 6:00 AM to 6:00 PM';
+  } else {
+    badge.textContent = '🌙 Night';
+    badge.className = 'phase-badge phase-night';
+    document.getElementById('erinn-phase-text').textContent = 'Night time — from 6:00 PM to 6:00 AM';
+  }
+
+  // Next Erinn day countdown — erinnMinutes is 0–1440, remainder * 1500ms = real ms left
+  const erinnMinsLeft = (24 * 60) - erinnMinutes;
+  const msUntilNextDay = erinnMinsLeft * ERINN_MIN_MS;
+  const secLeft = Math.floor(msUntilNextDay / 1000);
+  const minLeft = Math.floor(secLeft / 60);
+  const secR = secLeft % 60;
+  document.getElementById('next-day-countdown').textContent = `${minLeft}m ${secR}s`;
+
+  // Real time
+  document.getElementById('real-time-display').textContent =
+    'Real: ' + now.toLocaleTimeString();
+
+  // Check PTJ notifications
+  checkPTJNotifications(h, m);
+
+  // Update PTJ list
+  renderPTJList();
+  updateNextJobBanner();
+}
+
+// ═══════════════════════════════════════════════
+//  PART-TIME JOB DATA  (from Mabinogi World Wiki)
+//  startH  = Erinn hour job opens (Start Time col)
+//  reportH = earliest Erinn hour to report completion
+//  endH    = Recruit End (last hour NPC accepts)
+//  tracked = whether shown in "My Tracked Jobs"
+// ═══════════════════════════════════════════════
+const ALL_NPCS = [
+  // Tir Chonaill
+  { id:1,  name:'Caitin',   loc:'Tir Chonaill',           shop:'Grocery Store',          startH:12, reportH:14, endH:21 },
+  { id:2,  name:'Deian',    loc:'Tir Chonaill',           shop:'General',                startH:7,  reportH:9,  endH:19 },
+  { id:3,  name:'Dilys',    loc:'Tir Chonaill',           shop:"Healer's House",         startH:6,  reportH:9,  endH:15 },
+  { id:4,  name:'Endelyon', loc:'Tir Chonaill',           shop:'Church',                 startH:12, reportH:16, endH:21 },
+  { id:5,  name:'Ferghus',  loc:'Tir Chonaill',           shop:'Blacksmith Shop',        startH:12, reportH:13, endH:19 },
+  { id:6,  name:'Malcolm',  loc:'Tir Chonaill',           shop:'General Shop',           startH:7,  reportH:9,  endH:19 },
+  { id:7,  name:'Piaras',   loc:'Tir Chonaill',           shop:'Inn',                    startH:7,  reportH:9,  endH:19 },
+  { id:8,  name:'Tracy',    loc:'Tir Chonaill',           shop:'General (Dugald Aisle)', startH:7,  reportH:9,  endH:19 },
+  // Dunbarton
+  { id:9,  name:'Aeira',    loc:'Dunbarton',              shop:'Bookstore',              startH:13, reportH:15, endH:20 },
+  { id:10, name:'Eavan',    loc:'Dunbarton',              shop:"Adventurers' Assoc.",    startH:7,  reportH:9,  endH:16 },
+  { id:11, name:'Glenis',   loc:'Dunbarton',              shop:'Grocery Store',          startH:12, reportH:14, endH:21 },
+  { id:12, name:'Kristell', loc:'Dunbarton',              shop:'Church',                 startH:12, reportH:16, endH:21 },
+  { id:13, name:'Manus',    loc:'Dunbarton',              shop:"Healer's House",         startH:6,  reportH:9,  endH:15 },
+  { id:14, name:'Nerys',    loc:'Dunbarton',              shop:'Weapons Shop',           startH:15, reportH:17, endH:22 },
+  { id:15, name:'Simon',    loc:'Dunbarton',              shop:'Clothing Shop',          startH:7,  reportH:12, endH:19 },
+  { id:16, name:'Stewart',  loc:'Dunbarton',              shop:'Library',                startH:9,  reportH:13, endH:19 },
+  { id:17, name:'Walter',   loc:'Dunbarton',              shop:'General Shop',           startH:7,  reportH:9,  endH:19 },
+  // Bangor
+  { id:18, name:'Comgan',   loc:'Bangor',                 shop:'Church',                 startH:12, reportH:16, endH:21 },
+  { id:19, name:'Edern',    loc:'Bangor',                 shop:'Blacksmith Shop',        startH:7,  reportH:12, endH:19 },
+  { id:20, name:'Elen',     loc:'Bangor',                 shop:'Blacksmith Shop',        startH:12, reportH:13, endH:19 },
+  { id:21, name:'Sion',     loc:'Bangor',                 shop:'Stope',                  startH:10, reportH:15, endH:23 },
+  // Emain Macha
+  { id:22, name:'Agnes',    loc:'Emain Macha',            shop:"Healer's House",         startH:6,  reportH:9,  endH:15 },
+  { id:23, name:'Ailionoa', loc:'Emain Macha',            shop:'Clothing Shop',          startH:7,  reportH:12, endH:19 },
+  { id:24, name:'Del',      loc:'Emain Macha',            shop:'Flower Shop',            startH:8,  reportH:10, endH:16 },
+  { id:25, name:'Fraser',   loc:'Emain Macha',            shop:'Grocery Store',          startH:12, reportH:14, endH:21 },
+  { id:26, name:'Galvin',   loc:'Emain Macha',            shop:'General Shop',           startH:7,  reportH:9,  endH:19 },
+  { id:27, name:'James',    loc:'Emain Macha',            shop:'Church',                 startH:12, reportH:16, endH:21 },
+  { id:28, name:'Lery',     loc:'Emain Macha',            shop:'Puppet Shop',            startH:7,  reportH:16, endH:20 },
+  { id:29, name:'Nele',     loc:'Emain Macha',            shop:'Music Shop',             startH:10, reportH:12, endH:15 },
+  { id:30, name:'Osla',     loc:'Emain Macha',            shop:'Weapons Shop',           startH:15, reportH:17, endH:22 },
+  { id:31, name:'Shena',    loc:'Emain Macha',            shop:'Grocery Store',          startH:8,  reportH:12, endH:21 },
+  // Qilla Base Camp
+  { id:32, name:'Effie',    loc:'Qilla Base Camp',        shop:'General Shop',           startH:7,  reportH:9,  endH:19 },
+  { id:33, name:'Heulfryn', loc:'Qilla Base Camp',        shop:"Healer's House",         startH:12, reportH:16, endH:21 },
+  { id:34, name:'Nicca',    loc:'Qilla Base Camp',        shop:'Weapons Shop',           startH:15, reportH:17, endH:22 },
+  // Filia
+  { id:35, name:'Atrata',   loc:'Filia',                  shop:"Healer's House",         startH:6,  reportH:9,  endH:15 },
+  { id:36, name:'Castanea', loc:'Filia',                  shop:'Church',                 startH:12, reportH:16, endH:21 },
+  { id:37, name:'Granites', loc:'Filia',                  shop:'General Shop',           startH:7,  reportH:9,  endH:19 },
+  { id:38, name:'Lepus',    loc:'Filia',                  shop:'Clothing Shop',          startH:7,  reportH:12, endH:19 },
+  { id:39, name:'Meles',    loc:'Filia',                  shop:'Weapons Shop',           startH:15, reportH:17, endH:22 },
+  // Vales
+  { id:40, name:'Kirine',   loc:'Vales',                  shop:"Healer's House",         startH:6,  reportH:9,  endH:15 },
+  // Calida Exploration Camp
+  { id:41, name:'Belita',   loc:'Calida Exploration Camp',shop:"Healer's House",         startH:6,  reportH:9,  endH:15 },
+  { id:42, name:'Kelpie',   loc:'Calida Exploration Camp',shop:'General Shop',           startH:7,  reportH:9,  endH:19 },
+  // Taillteann
+  { id:43, name:'Brenda',   loc:'Taillteann',             shop:'Clothing Shop',          startH:7,  reportH:12, endH:19 },
+  { id:44, name:'Collen',   loc:'Taillteann',             shop:'Church',                 startH:12, reportH:16, endH:21 },
+  { id:45, name:'Eabha',    loc:'Taillteann',             shop:'Alchemist House',        startH:9,  reportH:14, endH:21 },
+  { id:46, name:'Pierrick', loc:'Taillteann',             shop:'General Shop',           startH:7,  reportH:9,  endH:19 },
+  // Tara
+  { id:47, name:'Corentin', loc:'Tara',                   shop:"Pontiff's Court",        startH:8,  reportH:14, endH:20 },
+  { id:48, name:'Hans',     loc:'Tara',                   shop:'Street Artist',          startH:7,  reportH:9,  endH:16 },
+  { id:49, name:'Keith',    loc:'Tara',                   shop:'Bank',                   startH:7,  reportH:9,  endH:23 },
+  { id:50, name:'Lileas',   loc:'Tara',                   shop:'Jousting Arena',         startH:10, reportH:15, endH:21 },
+  { id:51, name:'Pencast',  loc:'Tara',                   shop:'Church',                 startH:12, reportH:16, endH:21 },
+  // Port Cobh
+  { id:52, name:'Ascon',    loc:'Port Cobh',              shop:'Lighthouse',             startH:16, reportH:19, endH:23 },
+  // Commonwealth of Belvast
+  { id:53, name:'Barry',    loc:'Commonwealth of Belvast',shop:'Pub',                    startH:10, reportH:14, endH:22 },
+  { id:54, name:'Mont',     loc:'Commonwealth of Belvast',shop:'Bank',                   startH:6,  reportH:10, endH:14 },
+  { id:55, name:'Vanalen',  loc:'Commonwealth of Belvast',shop:'Grocery Store',          startH:9,  reportH:12, endH:21 },
+];
+
+// tracked = set of NPC ids the user is watching; stored in localStorage
+function loadTracked() {
+  try {
+    const s = localStorage.getItem('erinn_tracked');
+    return s ? new Set(JSON.parse(s)) : new Set([2,7,8,10,11,12,14,17]); // sensible defaults
+  } catch(e) { return new Set([2,7,8,10,11,12,14,17]); }
+}
+function saveTracked() {
+  localStorage.setItem('erinn_tracked', JSON.stringify([...trackedIds]));
+}
+let trackedIds = loadTracked();
+
+function toggleTracked(id) {
+  if (trackedIds.has(id)) trackedIds.delete(id);
+  else trackedIds.add(id);
+  saveTracked();
+  renderPTJList();
+}
+
+function getJobStatus(npc) {
+  const { h, m } = getErinnTime();
+  const nowMins = h * 60 + m;
+  const startMins = npc.startH * 60;
+  const endMins = npc.endH * 60;
+  const remindBefore = parseInt(document.getElementById('ptj-remind-before')?.value || '2');
+  const remindMins = remindBefore * 60;
+  if (nowMins >= startMins - remindMins && nowMins < startMins) return 'upcoming';
+  if (nowMins >= startMins && nowMins < endMins) return 'active';
+  return 'inactive';
+}
+
+function fmtH(h) {
+  const hh = h % 24;
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return h12 + ':00 ' + (hh < 12 ? 'AM' : 'PM');
+}
+
+function renderPTJList() {
+  const list = document.getElementById('ptj-list');
+  if (!list) return;
+  const filterLoc  = document.getElementById('ptj-filter-loc')?.value || '';
+  const filterShow = document.getElementById('ptj-filter-show')?.value || 'tracked';
+  const label = document.getElementById('ptj-list-label');
+
+  let npcs = ALL_NPCS;
+  if (filterLoc) npcs = npcs.filter(n => n.loc === filterLoc);
+  if (filterShow === 'tracked') {
+    npcs = npcs.filter(n => trackedIds.has(n.id));
+    if (label) label.textContent = 'My Tracked Jobs';
+  } else {
+    if (label) label.textContent = filterLoc ? `All NPCs in ${filterLoc}` : 'All NPCs';
+  }
+
+  npcs = [...npcs].sort((a, b) => a.startH - b.startH || a.name.localeCompare(b.name));
+  list.innerHTML = '';
+
+  if (npcs.length === 0) {
+    list.innerHTML = '<li style="padding:16px; text-align:center; color:var(--text-dim); font-style:italic; font-size:0.85rem;">No jobs to show. Switch to "All NPCs" to browse and track some!</li>';
+    return;
+  }
+
+  npcs.forEach(npc => {
+    const status = getJobStatus(npc);
+    const tracked = trackedIds.has(npc.id);
+    const li = document.createElement('li');
+    li.className = `ptj-item ${status}`;
+    li.innerHTML = `
+      <div class="ptj-dot dot-${status}"></div>
+      <div style="flex:1; min-width:0;">
+        <div class="ptj-name">${escHtml(npc.name)}
+          <span style="font-size:0.7rem; color:var(--text-dim); font-weight:400; margin-left:4px;">${escHtml(npc.loc)}</span>
+        </div>
+        <div class="ptj-time">${escHtml(npc.shop)} · ${fmtH(npc.startH)}–${fmtH(npc.endH)}</div>
+      </div>
+      <span class="ptj-status status-${status === 'inactive' ? 'done' : status}">
+        ${status === 'active' ? 'OPEN' : status === 'upcoming' ? 'SOON' : 'CLOSED'}
+      </span>
+      <button class="ptj-toggle" title="${tracked ? 'Untrack' : 'Track'}" onclick="toggleTracked(${npc.id})" style="color:${tracked ? 'var(--gold)' : 'var(--text-dim)'}; font-size:1.1rem;">
+        ${tracked ? '★' : '☆'}
+      </button>
+    `;
+    list.appendChild(li);
+  });
+}
+
+function updateNextJobBanner() {
+  const banner = document.getElementById('next-job-banner');
+  if (!banner) return;
+  const { h, m } = getErinnTime();
+  const nowMins = h * 60 + m;
+  const upcoming = ALL_NPCS
+    .filter(n => trackedIds.has(n.id) && n.startH * 60 > nowMins)
+    .sort((a, b) => a.startH - b.startH);
+  if (upcoming.length) {
+    const next = upcoming[0];
+    const diffMins = next.startH * 60 - nowMins;
+    const realSec = Math.round(diffMins * 1.5);
+    banner.style.display = 'flex';
+    document.getElementById('next-job-time-text').textContent =
+      `${escHtml(next.name)} @ ${fmtH(next.startH)} (${formatRealSec(realSec)})`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function formatRealSec(sec) {
+  if (sec < 60) return sec + 's real';
+  const min = Math.floor(sec / 60), s = sec % 60;
+  return `${min}m ${s}s real`;
+}
+
+// Check PTJ notifications (fires at remind-before window AND at job open)
+function checkPTJNotifications(h, m) {
+  const notifyEnabled = document.getElementById('setting-desktop')?.checked;
+  if (!notifyEnabled) return;
+  const remindBefore = parseInt(document.getElementById('ptj-remind-before')?.value || '2');
+  const { totalErinnDays } = getErinnTime();
+
+  ALL_NPCS.filter(n => trackedIds.has(n.id)).forEach(npc => {
+    const nowMins = h * 60 + m;
+    const startMins = npc.startH * 60;
+    const remindMins = remindBefore * 60;
+
+    // Remind-before notification
+    if (remindBefore > 0) {
+      const remindTrigger = startMins - remindMins;
+      const keyRemind = `ptj_remind_${npc.id}_${totalErinnDays}`;
+      if (!lastNotifiedEvents[keyRemind] && nowMins >= remindTrigger && nowMins < remindTrigger + 2) {
+        lastNotifiedEvents[keyRemind] = true;
+        sendNotification(`⏰ ${npc.name} hiring soon`, `Job opens in ${remindBefore}h Erinn time (${npc.loc} · ${npc.shop})`);
+      }
+    }
+
+    // At-open notification
+    const keyOpen = `ptj_open_${npc.id}_${totalErinnDays}`;
+    if (!lastNotifiedEvents[keyOpen] && nowMins >= startMins && nowMins < startMins + 2) {
+      lastNotifiedEvents[keyOpen] = true;
+      sendNotification(`💼 ${npc.name} is hiring!`, `Report by ${fmtH(npc.endH)} · ${npc.loc} · ${npc.shop}`);
+    }
+  });
+}
+
+
+// ═══════════════════════════════════════════════
+//  PHANTASMAL SIGHT TIMER
+// ═══════════════════════════════════════════════
+const SIGHT_ACTIVE_MS  = 2 * 60 * 1000;  // 2 min
+const SIGHT_COOLDOWN_MS = 5 * 60 * 1000; // 5 min
+let sightState = 'ready'; // ready | active | cooldown
+let sightEndTime = null;
+let sightUsageLog = [];
+
+function activateSight() {
+  if (sightState === 'active') {
+    showToast('👁 Phantasmal Sight is already active!');
+    return;
+  }
+  if (sightState === 'cooldown') {
+    showToast('⏳ Still on cooldown…');
+    return;
+  }
+  sightState = 'active';
+  sightEndTime = Date.now() + SIGHT_ACTIVE_MS;
+  sightUsageLog.push({ time: new Date().toLocaleTimeString(), type: 'activated' });
+  document.getElementById('sight-btn').textContent = '⚡ Active…';
+  document.getElementById('sight-btn').disabled = true;
+  updateSightDisplay();
+  playNotifSound();
+}
+
+function updateSightDisplay() {
+  const fill = document.getElementById('sight-ring-fill');
+  const timeText = document.getElementById('sight-time-text');
+  const phaseLabel = document.getElementById('sight-phase-label');
+  const btn = document.getElementById('sight-btn');
+  const CIRCUMFERENCE = 364.4;
+
+  if (sightState === 'ready') {
+    fill.style.strokeDashoffset = '0';
+    fill.style.stroke = 'var(--teal)';
+    timeText.textContent = 'READY';
+    timeText.style.color = 'var(--teal)';
+    phaseLabel.textContent = 'Phantasmal';
+    btn.textContent = '▶ Activate';
+    btn.disabled = false;
+    btn.className = 'btn btn-teal sight-btn';
+    return;
+  }
+
+  const now = Date.now();
+  const remaining = Math.max(0, sightEndTime - now);
+  const totalDuration = sightState === 'active' ? SIGHT_ACTIVE_MS : SIGHT_COOLDOWN_MS;
+  const progress = remaining / totalDuration;
+  const offset = CIRCUMFERENCE * (1 - progress);
+
+  fill.style.strokeDashoffset = offset.toFixed(1);
+  fill.style.stroke = sightState === 'active' ? 'var(--teal)' : 'var(--gold)';
+
+  const sec = Math.ceil(remaining / 1000);
+  const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+  const ss = String(sec % 60).padStart(2, '0');
+  timeText.textContent = `${mm}:${ss}`;
+  timeText.style.color = sightState === 'active' ? 'var(--teal)' : 'var(--gold)';
+
+  if (sightState === 'active') {
+    phaseLabel.textContent = 'Active';
+    btn.textContent = '⚡ Active…';
+    btn.disabled = true;
+  } else {
+    phaseLabel.textContent = 'Cooldown';
+    btn.textContent = '⏳ Cooling down…';
+    btn.disabled = true;
+    btn.className = 'btn btn-outline sight-btn';
+  }
+
+  if (remaining <= 0) {
+    if (sightState === 'active') {
+      sightState = 'cooldown';
+      sightEndTime = Date.now() + SIGHT_COOLDOWN_MS;
+      sightUsageLog.push({ time: new Date().toLocaleTimeString(), type: 'expired' });
+    } else if (sightState === 'cooldown') {
+      sightState = 'ready';
+      sightEndTime = null;
+      sightUsageLog.push({ time: new Date().toLocaleTimeString(), type: 'ready' });
+      sendNotification('👁 Phantasmal Sight', 'Cooldown ended — ready to use again!');
+      updateSightHistory();
+    }
+  }
+}
+
+function updateSightHistory() {
+  const el = document.getElementById('sight-history');
+  if (!el) return;
+  if (sightUsageLog.length === 0) {
+    el.textContent = 'Not yet used this session';
+    return;
+  }
+  const last = sightUsageLog[sightUsageLog.length - 1];
+  el.textContent = `Last: ${last.type} at ${last.time} (${sightUsageLog.length} uses)`;
+}
+
+// ═══════════════════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════════════════
+function requestNotifPerms() {
+  if (!('Notification' in window)) {
+    showToast('❌ This browser does not support notifications');
+    return;
+  }
+  Notification.requestPermission().then(p => {
+    if (p === 'granted') {
+      showToast('✅ Desktop notifications enabled!');
+      saveSettings();
+    } else {
+      showToast('⚠ Notifications blocked by browser');
+    }
+  });
+}
+
+function sendNotification(title, body) {
+  playNotifSound();
+  // Desktop
+  if (Notification.permission === 'granted' && document.getElementById('setting-desktop')?.checked) {
+    try { new Notification(title, { body, icon: '⚔' }); } catch(e) {}
+  }
+  // ntfy.sh
+  const topic = document.getElementById('ntfy-topic')?.value?.trim();
+  const server = document.getElementById('ntfy-server')?.value?.trim() || 'https://ntfy.sh';
+  if (topic) {
+    fetch(`${server}/${encodeURIComponent(topic)}`, {
+      method: 'POST',
+      headers: { 'Title': title },
+      body: body
+    }).catch(() => {});
+  }
+  showToast(`🔔 ${title}`);
+}
+
+function testNtfy() {
+  sendNotification('⚔ Erinn Companion', 'Test notification from your Mabinogi dashboard!');
+}
+
+// Simple beep using Web Audio API
+let audioCtx = null;
+function playNotifSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(660, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.4);
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('erinn_settings') || '{}');
+    if (s.ntfyTopic) document.getElementById('ntfy-topic').value = s.ntfyTopic;
+    if (s.ntfyServer) document.getElementById('ntfy-server').value = s.ntfyServer;
+    if (s.desktop !== undefined) document.getElementById('setting-desktop').checked = s.desktop;
+    if (s.remindBefore !== undefined) document.getElementById('ptj-remind-before').value = s.remindBefore;
+  } catch(e) {}
+}
+
+function saveSettings() {
+  const s = {
+    ntfyTopic: document.getElementById('ntfy-topic')?.value,
+    ntfyServer: document.getElementById('ntfy-server')?.value,
+    desktop: document.getElementById('setting-desktop')?.checked,
+    remindBefore: document.getElementById('ptj-remind-before')?.value,
+  };
+  localStorage.setItem('erinn_settings', JSON.stringify(s));
+}
+
+// ═══════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════
+function showSection(name, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('section-' + name)?.classList.add('active');
+  btn.classList.add('active');
+}
+
+function showToast(msg) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function exportData() {
+  const data = { jobs, settings: JSON.parse(localStorage.getItem('erinn_settings') || '{}') };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'erinn-companion-data.json';
+  a.click();
+}
+
+function clearAllData() {
+  if (confirm('Clear all tracked jobs and settings?')) {
+    localStorage.removeItem('erinn_tracked');
+    localStorage.removeItem('erinn_settings');
+    localStorage.removeItem('erinn_offset');
+    trackedIds = new Set([2,7,8,10,11,12,14,17]);
+    erinnOffset = 0;
+    showToast('🗑 Data cleared. Defaults restored.');
+    renderPTJList();
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+function init() {
+  loadOffset();
+  loadSettings();
+  renderPTJList();
+
+  // Main tick
+  updateClock();
+  setInterval(() => {
+    updateClock();
+    updateSightDisplay();
+    updateSightHistory();
+  }, 1000);
+
+  // Request notification permission on first load
+  if (Notification.permission === 'default') {
+    setTimeout(requestNotifPerms, 1500);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+<!-- Sync Modal -->
+<div id="sync-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:28px; max-width:340px; width:100%; box-shadow:var(--shadow);">
+    <div style="font-family:'Cinzel',serif; font-size:1rem; color:var(--gold); margin-bottom:6px;">🔧 Sync Erinn Time</div>
+    <div style="font-size:0.85rem; color:var(--text-muted); font-style:italic; margin-bottom:20px;">
+      Look at the in-game clock and enter the current Erinn time below. The dashboard will sync from there.
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+      <div style="flex:1;">
+        <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Hour (0–23)</label>
+        <input id="sync-h" type="number" min="0" max="23" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:8px 12px; font-family:'Cinzel',serif; font-size:1.1rem; text-align:center;">
+      </div>
+      <div style="font-family:'Cinzel',serif; font-size:1.5rem; color:var(--gold); padding-top:16px;">:</div>
+      <div style="flex:1;">
+        <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">Minute (0–59)</label>
+        <input id="sync-m" type="number" min="0" max="59" style="width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:8px 12px; font-family:'Cinzel',serif; font-size:1.1rem; text-align:center;">
+      </div>
+    </div>
+    <div style="font-size:0.78rem; color:var(--text-dim); font-style:italic; margin-bottom:18px;">
+      💡 Tip: The in-game clock uses 24h format. 6 PM = 18, midnight = 0.
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-gold" onclick="confirmSync()" style="flex:1;">✓ Sync</button>
+      <button class="btn btn-outline" onclick="closeSyncModal()" style="flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('sync-modal').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmSync();
+  if (e.key === 'Escape') closeSyncModal();
+});
+</script>
+
+</body>
+</html>
