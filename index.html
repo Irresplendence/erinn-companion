@@ -607,18 +607,6 @@
         </select>
       </div>
 
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; padding:8px 12px; background:var(--surface2); border-radius:8px; border:1px solid var(--border);">
-        <span style="font-size:0.82rem; color:var(--text-muted); flex:1;">🔔 Remind me</span>
-        <select id="ptj-remind-before" onchange="saveSettings()" style="background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--gold); padding:4px 8px; font-family:'Cinzel',serif; font-size:0.8rem; font-weight:600;">
-          <option value="0">at start</option>
-          <option value="1">1h before</option>
-          <option value="2" selected>2h before</option>
-          <option value="3">3h before</option>
-          <option value="5">5h before</option>
-        </select>
-        <span style="font-size:0.82rem; color:var(--text-muted);">job opens</span>
-      </div>
-
       <p class="section-subhead" id="ptj-list-label">Tracked Jobs</p>
       <ul class="ptj-list" id="ptj-list"></ul>
     </div>
@@ -972,23 +960,63 @@ const ALL_NPCS = [
   { id:55, name:'Vanalen',  loc:'Commonwealth of Belvast',shop:'Grocery Store',          startH:9,  reportH:12, endH:21 },
 ];
 
-// tracked = set of NPC ids the user is watching; stored in localStorage
-function loadTracked() {
+// jobPrefs: { [id]: { notifyBefore: 0|1|2|3|5, notifyReport: bool } }
+// notifyBefore = Erinn hours before start to notify (0 = at start only)
+const DEFAULT_TRACKED = [2,7,8,10,11,12,14,17];
+const DEFAULT_PREFS = { notifyBefore: 2, notifyReport: false };
+
+function loadJobPrefs() {
   try {
-    const s = localStorage.getItem('erinn_tracked');
-    return s ? new Set(JSON.parse(s)) : new Set([2,7,8,10,11,12,14,17]); // sensible defaults
-  } catch(e) { return new Set([2,7,8,10,11,12,14,17]); }
+    const s = localStorage.getItem('erinn_jobprefs');
+    if (s) return JSON.parse(s);
+    // Migrate from old simple tracked set if present
+    const old = localStorage.getItem('erinn_tracked');
+    if (old) {
+      const ids = JSON.parse(old);
+      const prefs = {};
+      ids.forEach(id => { prefs[id] = { ...DEFAULT_PREFS }; });
+      return prefs;
+    }
+  } catch(e) {}
+  const prefs = {};
+  DEFAULT_TRACKED.forEach(id => { prefs[id] = { ...DEFAULT_PREFS }; });
+  return prefs;
 }
-function saveTracked() {
-  localStorage.setItem('erinn_tracked', JSON.stringify([...trackedIds]));
+
+function saveJobPrefs() {
+  localStorage.setItem('erinn_jobprefs', JSON.stringify(jobPrefs));
 }
-let trackedIds = loadTracked();
+
+let jobPrefs = loadJobPrefs();
+
+// Helpers
+const trackedIds = { has: id => !!jobPrefs[id] }; // keep API compat
+
+function isTracked(id) { return !!jobPrefs[id]; }
+
+function trackJob(id) {
+  if (!jobPrefs[id]) {
+    jobPrefs[id] = { ...DEFAULT_PREFS };
+    saveJobPrefs();
+    renderPTJList();
+  }
+}
+
+function untrackJob(id) {
+  delete jobPrefs[id];
+  saveJobPrefs();
+  renderPTJList();
+}
 
 function toggleTracked(id) {
-  if (trackedIds.has(id)) trackedIds.delete(id);
-  else trackedIds.add(id);
-  saveTracked();
-  renderPTJList();
+  if (isTracked(id)) untrackJob(id);
+  else trackJob(id);
+}
+
+function setJobPref(id, key, value) {
+  if (!jobPrefs[id]) return;
+  jobPrefs[id][key] = value;
+  saveJobPrefs();
 }
 
 function getJobStatus(npc) {
@@ -996,8 +1024,8 @@ function getJobStatus(npc) {
   const nowMins = h * 60 + m;
   const startMins = npc.startH * 60;
   const endMins = npc.endH * 60;
-  const remindBefore = parseInt(document.getElementById('ptj-remind-before')?.value || '2');
-  const remindMins = remindBefore * 60;
+  const prefs = jobPrefs[npc.id] || DEFAULT_PREFS;
+  const remindMins = (prefs.notifyBefore || 0) * 60;
   if (nowMins >= startMins - remindMins && nowMins < startMins) return 'upcoming';
   if (nowMins >= startMins && nowMins < endMins) return 'active';
   return 'inactive';
@@ -1011,83 +1039,84 @@ function loadJobSounds() {
   try {
     const keys = Object.keys(localStorage).filter(k => k.startsWith('erinn_jsound_'));
     keys.forEach(k => {
-      const id = parseInt(k.replace('erinn_jsound_', ''));
+      // key format: erinn_jsound_{id}_{type}
+      const match = k.match(/^erinn_jsound_(\d+)_(start|report)$/);
+      if (!match) return;
+      const id = parseInt(match[1]), type = match[2];
       const b64 = localStorage.getItem(k);
-      if (b64) decodeJobSound(id, b64);
+      if (b64) decodeJobSound(id, type, b64);
     });
   } catch(e) {}
 }
 
-function decodeJobSound(id, b64) {
+function decodeJobSound(id, type, b64) {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const raw = b64.includes(',') ? b64.split(',')[1] : b64;
     const binary = atob(raw);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    audioCtx.decodeAudioData(bytes.buffer, buf => { jobSounds[id] = buf; });
+    audioCtx.decodeAudioData(bytes.buffer, buf => { jobSounds[`${id}_${type}`] = buf; });
   } catch(e) {}
 }
 
-function handleJobSoundUpload(input, id) {
+function handleJobSoundUpload(input, id, type) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
     const b64 = e.target.result;
     try {
-      localStorage.setItem(`erinn_jsound_${id}`, b64);
-      localStorage.setItem(`erinn_jsound_name_${id}`, file.name);
+      localStorage.setItem(`erinn_jsound_${id}_${type}`, b64);
+      localStorage.setItem(`erinn_jsound_name_${id}_${type}`, file.name);
     } catch(err) {
       showToast('⚠ File too large — works this session only');
     }
-    decodeJobSound(id, b64);
-    // Update the label in the expanded panel
-    const lbl = document.getElementById(`jsound-lbl-${id}`);
+    decodeJobSound(id, type, b64);
+    const lbl = document.getElementById(`jslbl-${id}-${type}`);
     if (lbl) lbl.textContent = file.name;
-    showToast(`🎵 Sound set for job — testing…`);
-    setTimeout(() => playJobSound(id), 300);
+    showToast(`🎵 ${type === 'report' ? 'Report' : 'Start'} sound set — testing…`);
+    setTimeout(() => playJobSound(id, type), 300);
   };
   reader.readAsDataURL(file);
 }
 
-function clearJobSound(id) {
-  delete jobSounds[id];
-  localStorage.removeItem(`erinn_jsound_${id}`);
-  localStorage.removeItem(`erinn_jsound_name_${id}`);
-  const lbl = document.getElementById(`jsound-lbl-${id}`);
+function clearJobSound(id, type) {
+  delete jobSounds[`${id}_${type}`];
+  localStorage.removeItem(`erinn_jsound_${id}_${type}`);
+  localStorage.removeItem(`erinn_jsound_name_${id}_${type}`);
+  const lbl = document.getElementById(`jslbl-${id}-${type}`);
   if (lbl) lbl.textContent = 'Using global sound';
-  showToast('🔕 Job sound cleared — using global');
+  showToast('🔕 Sound cleared');
 }
 
-function playJobSound(id) {
+function playJobSound(id, type) {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    const buf = jobSounds[id];
+    const buf = jobSounds[`${id}_${type}`];
     if (buf) {
       const src = audioCtx.createBufferSource();
       src.buffer = buf; src.connect(audioCtx.destination); src.start(0);
     } else {
-      playNotifSound(); // fallback to global
+      playNotifSound();
     }
   } catch(e) {}
 }
 
-function getJobSoundName(id) {
-  return localStorage.getItem(`erinn_jsound_name_${id}`) || null;
+function getJobSoundName(id, type) {
+  return localStorage.getItem(`erinn_jsound_name_${id}_${type}`) || null;
 }
 
-function toggleJobSoundPanel(id) {
-  const panel = document.getElementById(`jsound-panel-${id}`);
+function toggleJobCfgPanel(id) {
+  const panel = document.getElementById(`jcfg-panel-${id}`);
   if (!panel) return;
   const isOpen = panel.style.display !== 'none';
-  // Close all other panels first
-  document.querySelectorAll('[id^="jsound-panel-"]').forEach(p => p.style.display = 'none');
-  document.querySelectorAll('[id^="jsound-btn-"]').forEach(b => b.style.color = 'var(--text-dim)');
+  document.querySelectorAll('[id^="jcfg-panel-"]').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('[id^="jcfg-btn-"]').forEach(b => b.style.color = 'var(--text-dim)');
   if (!isOpen) {
     panel.style.display = 'block';
-    const btn = document.getElementById(`jsound-btn-${id}`);
+    const btn = document.getElementById(`jcfg-btn-${id}`);
     if (btn) btn.style.color = 'var(--teal)';
   }
 }
@@ -1148,40 +1177,90 @@ function renderPTJList() {
 
   npcs.forEach(npc => {
     const status = getJobStatus(npc);
-    const tracked = trackedIds.has(npc.id);
-    const soundName = getJobSoundName(npc.id);
-    const hasSnd = !!jobSounds[npc.id] || !!localStorage.getItem(`erinn_jsound_${npc.id}`);
+    const tracked = isTracked(npc.id);
+    const prefs = jobPrefs[npc.id] || {};
+    const startSndName = getJobSoundName(npc.id, 'start');
+    const reportSndName = getJobSoundName(npc.id, 'report');
+    const hasStartSnd = !!jobSounds[`${npc.id}_start`] || !!localStorage.getItem(`erinn_jsound_${npc.id}_start`);
+    const hasReportSnd = !!jobSounds[`${npc.id}_report`] || !!localStorage.getItem(`erinn_jsound_${npc.id}_report`);
+
     const li = document.createElement('li');
     li.className = `ptj-item ${status}`;
     li.dataset.npcId = npc.id;
     li.style.flexWrap = 'wrap';
+
+    const notifyBeforeVal = prefs.notifyBefore ?? 2;
+    const notifyReportVal = prefs.notifyReport ?? false;
+
+    const beforeOpts = [0,1,2,3,5].map(v =>
+      `<option value="${v}" ${notifyBeforeVal === v ? 'selected' : ''}>${v === 0 ? 'At start only' : v + 'h before'}</option>`
+    ).join('');
+
     li.innerHTML = `
       <div class="ptj-dot dot-${status}" style="flex-shrink:0;"></div>
       <div style="flex:1; min-width:0;">
         <div class="ptj-name">${escHtml(npc.name)}
           <span style="font-size:0.7rem; color:var(--text-dim); font-weight:400; margin-left:4px;">${escHtml(npc.loc)}</span>
         </div>
-        <div class="ptj-time">${escHtml(npc.shop)} · ${fmtH(npc.startH)}–${fmtH(npc.endH)}</div>
+        <div class="ptj-time">${escHtml(npc.shop)} · ${fmtH(npc.startH)}–${fmtH(npc.endH)}
+          ${tracked ? `<span style="color:var(--text-dim);">· report from ${fmtH(npc.reportH)}</span>` : ''}
+        </div>
       </div>
       <span class="ptj-status status-${status === 'inactive' ? 'done' : status}">
         ${status === 'active' ? 'OPEN' : status === 'upcoming' ? 'SOON' : 'CLOSED'}
       </span>
-      <button id="jsound-btn-${npc.id}" class="ptj-toggle" title="Set alert sound" onclick="toggleJobSoundPanel(${npc.id})"
-        style="color:${hasSnd ? 'var(--teal)' : 'var(--text-dim)'}; font-size:1rem;">🎵</button>
+      <button id="jcfg-btn-${npc.id}" class="ptj-toggle" title="Configure alerts" onclick="toggleJobCfgPanel(${npc.id})"
+        style="color:${tracked ? 'var(--teal)' : 'var(--text-dim)'}; font-size:1rem;">⚙</button>
       <button class="ptj-toggle" title="${tracked ? 'Untrack' : 'Track'}" onclick="toggleTracked(${npc.id})"
         style="color:${tracked ? 'var(--gold)' : 'var(--text-dim)'}; font-size:1.1rem;">${tracked ? '★' : '☆'}</button>
-      <div id="jsound-panel-${npc.id}" style="display:none; width:100%; margin-top:10px; padding:10px 12px; background:var(--bg); border-radius:8px; border:1px solid var(--border);">
-        <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:6px;">🎵 Alert sound for <strong>${escHtml(npc.name)}</strong></div>
-        <div id="jsound-lbl-${npc.id}" style="font-size:0.72rem; color:var(--text-dim); font-style:italic; margin-bottom:8px;">${soundName || 'Using global sound'}</div>
-        <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          <label class="btn btn-outline" style="cursor:pointer; font-size:0.72rem; padding:5px 10px;">
-            📂 Upload
-            <input type="file" accept="audio/*" style="display:none;" onchange="handleJobSoundUpload(this, ${npc.id})">
-          </label>
-          <button class="btn btn-outline" onclick="playJobSound(${npc.id})" style="font-size:0.72rem; padding:5px 10px;">▶ Preview</button>
-          <button class="btn btn-danger" onclick="clearJobSound(${npc.id})" style="font-size:0.72rem; padding:5px 10px;">✕ Clear</button>
+
+      ${tracked ? `
+      <div id="jcfg-panel-${npc.id}" style="display:none; width:100%; margin-top:10px; padding:12px; background:var(--bg); border-radius:8px; border:1px solid var(--border); font-size:0.82rem;">
+
+        <!-- START ALERT -->
+        <div style="margin-bottom:12px;">
+          <div style="color:var(--gold); font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:8px;">⏰ Start Alert</div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+            <span style="color:var(--text-muted); font-size:0.8rem;">Notify me</span>
+            <select onchange="setJobPref(${npc.id},'notifyBefore',parseInt(this.value))"
+              style="background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--gold); padding:4px 8px; font-family:'Cinzel',serif; font-size:0.78rem;">
+              ${beforeOpts}
+            </select>
+            <span style="color:var(--text-muted); font-size:0.8rem;">· starts ${fmtH(npc.startH)}</span>
+          </div>
+          <div style="font-size:0.72rem; color:var(--text-dim); margin-bottom:6px; font-style:italic;" id="jslbl-${npc.id}-start">${startSndName || 'Using global sound'}</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <label class="btn btn-outline" style="cursor:pointer; font-size:0.7rem; padding:4px 10px;">
+              📂 Sound <input type="file" accept="audio/*" style="display:none;" onchange="handleJobSoundUpload(this,${npc.id},'start')">
+            </label>
+            <button class="btn btn-outline" onclick="playJobSound(${npc.id},'start')" style="font-size:0.7rem; padding:4px 10px;">▶</button>
+            <button class="btn btn-danger" onclick="clearJobSound(${npc.id},'start')" style="font-size:0.7rem; padding:4px 10px;">✕</button>
+          </div>
         </div>
-      </div>
+
+        <!-- REPORT ALERT -->
+        <div style="border-top:1px solid var(--border); padding-top:12px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <div style="color:var(--teal); font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; flex:1;">📋 Report Alert</div>
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.78rem; color:var(--text-muted);">
+              <input type="checkbox" ${notifyReportVal ? 'checked' : ''} onchange="setJobPref(${npc.id},'notifyReport',this.checked)"
+                style="accent-color:var(--teal);"> Enable
+            </label>
+          </div>
+          <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:8px;">
+            Notifies at <strong style="color:var(--teal);">${fmtH(npc.reportH)}</strong> — report by ${fmtH(npc.endH)}
+          </div>
+          <div style="font-size:0.72rem; color:var(--text-dim); margin-bottom:6px; font-style:italic;" id="jslbl-${npc.id}-report">${reportSndName || 'Using global sound'}</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <label class="btn btn-outline" style="cursor:pointer; font-size:0.7rem; padding:4px 10px;">
+              📂 Sound <input type="file" accept="audio/*" style="display:none;" onchange="handleJobSoundUpload(this,${npc.id},'report')">
+            </label>
+            <button class="btn btn-outline" onclick="playJobSound(${npc.id},'report')" style="font-size:0.7rem; padding:4px 10px;">▶</button>
+            <button class="btn btn-danger" onclick="clearJobSound(${npc.id},'report')" style="font-size:0.7rem; padding:4px 10px;">✕</button>
+          </div>
+        </div>
+
+      </div>` : ''}
     `;
     list.appendChild(li);
   });
@@ -1213,33 +1292,58 @@ function formatRealSec(sec) {
   return `${min}m ${s}s real`;
 }
 
-// Check PTJ notifications (fires at remind-before window AND at job open)
+// Check PTJ notifications
 function checkPTJNotifications(h, m) {
   const notifyEnabled = document.getElementById('setting-desktop')?.checked;
   if (!notifyEnabled) return;
-  const remindBefore = parseInt(document.getElementById('ptj-remind-before')?.value || '2');
   const { totalErinnDays } = getErinnTime();
 
-  ALL_NPCS.filter(n => trackedIds.has(n.id)).forEach(npc => {
+  Object.keys(jobPrefs).forEach(idStr => {
+    const id = parseInt(idStr);
+    const npc = ALL_NPCS.find(n => n.id === id);
+    if (!npc) return;
+    const prefs = jobPrefs[id];
     const nowMins = h * 60 + m;
     const startMins = npc.startH * 60;
-    const remindMins = remindBefore * 60;
+    const reportMins = npc.reportH * 60;
+    const notifyBefore = prefs.notifyBefore ?? 2;
 
-    // Remind-before notification
-    if (remindBefore > 0) {
-      const remindTrigger = startMins - remindMins;
-      const keyRemind = `ptj_remind_${npc.id}_${totalErinnDays}`;
+    // Remind-before notification (only if notifyBefore > 0)
+    if (notifyBefore > 0) {
+      const remindTrigger = startMins - (notifyBefore * 60);
+      const keyRemind = `ptj_remind_${id}_${totalErinnDays}`;
       if (!lastNotifiedEvents[keyRemind] && nowMins >= remindTrigger && nowMins < remindTrigger + 2) {
         lastNotifiedEvents[keyRemind] = true;
-        sendNotification(`⏰ ${npc.name} hiring soon`, `Job opens in ${remindBefore}h Erinn time (${npc.loc} · ${npc.shop})`, npc.id);
+        sendNotification(
+          `⏰ ${npc.name} starts in ${notifyBefore}h!`,
+          `${npc.shop} · ${npc.loc} · opens at ${fmtH(npc.startH)}`,
+          id, 'start'
+        );
       }
     }
 
-    // At-open notification
-    const keyOpen = `ptj_open_${npc.id}_${totalErinnDays}`;
+    // At-start notification
+    const keyOpen = `ptj_open_${id}_${totalErinnDays}`;
     if (!lastNotifiedEvents[keyOpen] && nowMins >= startMins && nowMins < startMins + 2) {
       lastNotifiedEvents[keyOpen] = true;
-      sendNotification(`💼 ${npc.name} is hiring!`, `Report by ${fmtH(npc.endH)} · ${npc.loc} · ${npc.shop}`, npc.id);
+      sendNotification(
+        `💼 It's time for ${npc.name}'s part-time job!`,
+        `${npc.shop} · ${npc.loc} · report by ${fmtH(npc.endH)}`,
+        id, 'start'
+      );
+    }
+
+    // Report notification (optional)
+    if (prefs.notifyReport) {
+      const keyReport = `ptj_report_${id}_${totalErinnDays}`;
+      if (!lastNotifiedEvents[keyReport] && nowMins >= reportMins && nowMins < reportMins + 2) {
+        lastNotifiedEvents[keyReport] = true;
+        sendNotification(
+          `📋 Time to report for ${npc.name}!`,
+          `Head to ${npc.shop} in ${npc.loc} — deadline ${fmtH(npc.endH)}`,
+          id, 'report'
+        );
+      }
     }
   });
 }
@@ -1361,10 +1465,10 @@ function requestNotifPerms() {
   });
 }
 
-function sendNotification(title, body, npcId = null) {
-  // Play per-job sound if set, otherwise global
-  if (npcId !== null && jobSounds[npcId]) {
-    playJobSound(npcId);
+function sendNotification(title, body, npcId = null, soundType = 'start') {
+  // Per-job sound → global sound → default chime
+  if (npcId !== null && jobSounds[`${npcId}_${soundType}`]) {
+    playJobSound(npcId, soundType);
   } else {
     playNotifSound();
   }
@@ -1511,7 +1615,6 @@ function loadSettings() {
     if (s.ntfyTopic) document.getElementById('ntfy-topic').value = s.ntfyTopic;
     if (s.ntfyServer) document.getElementById('ntfy-server').value = s.ntfyServer;
     if (s.desktop !== undefined) document.getElementById('setting-desktop').checked = s.desktop;
-    if (s.remindBefore !== undefined) document.getElementById('ptj-remind-before').value = s.remindBefore;
   } catch(e) {}
 }
 
@@ -1520,7 +1623,6 @@ function saveSettings() {
     ntfyTopic: document.getElementById('ntfy-topic')?.value,
     ntfyServer: document.getElementById('ntfy-server')?.value,
     desktop: document.getElementById('setting-desktop')?.checked,
-    remindBefore: document.getElementById('ptj-remind-before')?.value,
   };
   localStorage.setItem('erinn_settings', JSON.stringify(s));
 }
