@@ -1003,6 +1003,95 @@ function getJobStatus(npc) {
   return 'inactive';
 }
 
+// ── Per-job custom sounds ──
+// jobSounds: { [npcId]: { name, buffer } } — buffers live in memory, b64 in localStorage
+let jobSounds = {}; // { [id]: AudioBuffer }
+
+function loadJobSounds() {
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('erinn_jsound_'));
+    keys.forEach(k => {
+      const id = parseInt(k.replace('erinn_jsound_', ''));
+      const b64 = localStorage.getItem(k);
+      if (b64) decodeJobSound(id, b64);
+    });
+  } catch(e) {}
+}
+
+function decodeJobSound(id, b64) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const raw = b64.includes(',') ? b64.split(',')[1] : b64;
+    const binary = atob(raw);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    audioCtx.decodeAudioData(bytes.buffer, buf => { jobSounds[id] = buf; });
+  } catch(e) {}
+}
+
+function handleJobSoundUpload(input, id) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result;
+    try {
+      localStorage.setItem(`erinn_jsound_${id}`, b64);
+      localStorage.setItem(`erinn_jsound_name_${id}`, file.name);
+    } catch(err) {
+      showToast('⚠ File too large — works this session only');
+    }
+    decodeJobSound(id, b64);
+    // Update the label in the expanded panel
+    const lbl = document.getElementById(`jsound-lbl-${id}`);
+    if (lbl) lbl.textContent = file.name;
+    showToast(`🎵 Sound set for job — testing…`);
+    setTimeout(() => playJobSound(id), 300);
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearJobSound(id) {
+  delete jobSounds[id];
+  localStorage.removeItem(`erinn_jsound_${id}`);
+  localStorage.removeItem(`erinn_jsound_name_${id}`);
+  const lbl = document.getElementById(`jsound-lbl-${id}`);
+  if (lbl) lbl.textContent = 'Using global sound';
+  showToast('🔕 Job sound cleared — using global');
+}
+
+function playJobSound(id) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const buf = jobSounds[id];
+    if (buf) {
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf; src.connect(audioCtx.destination); src.start(0);
+    } else {
+      playNotifSound(); // fallback to global
+    }
+  } catch(e) {}
+}
+
+function getJobSoundName(id) {
+  return localStorage.getItem(`erinn_jsound_name_${id}`) || null;
+}
+
+function toggleJobSoundPanel(id) {
+  const panel = document.getElementById(`jsound-panel-${id}`);
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  // Close all other panels first
+  document.querySelectorAll('[id^="jsound-panel-"]').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('[id^="jsound-btn-"]').forEach(b => b.style.color = 'var(--text-dim)');
+  if (!isOpen) {
+    panel.style.display = 'block';
+    const btn = document.getElementById(`jsound-btn-${id}`);
+    if (btn) btn.style.color = 'var(--teal)';
+  }
+}
+
 function fmtH(h) {
   const hh = h % 24;
   const h12 = hh % 12 === 0 ? 12 : hh % 12;
@@ -1036,10 +1125,13 @@ function renderPTJList() {
   npcs.forEach(npc => {
     const status = getJobStatus(npc);
     const tracked = trackedIds.has(npc.id);
+    const soundName = getJobSoundName(npc.id);
+    const hasSnd = !!jobSounds[npc.id] || !!localStorage.getItem(`erinn_jsound_${npc.id}`);
     const li = document.createElement('li');
     li.className = `ptj-item ${status}`;
+    li.style.flexWrap = 'wrap';
     li.innerHTML = `
-      <div class="ptj-dot dot-${status}"></div>
+      <div class="ptj-dot dot-${status}" style="flex-shrink:0;"></div>
       <div style="flex:1; min-width:0;">
         <div class="ptj-name">${escHtml(npc.name)}
           <span style="font-size:0.7rem; color:var(--text-dim); font-weight:400; margin-left:4px;">${escHtml(npc.loc)}</span>
@@ -1049,9 +1141,22 @@ function renderPTJList() {
       <span class="ptj-status status-${status === 'inactive' ? 'done' : status}">
         ${status === 'active' ? 'OPEN' : status === 'upcoming' ? 'SOON' : 'CLOSED'}
       </span>
-      <button class="ptj-toggle" title="${tracked ? 'Untrack' : 'Track'}" onclick="toggleTracked(${npc.id})" style="color:${tracked ? 'var(--gold)' : 'var(--text-dim)'}; font-size:1.1rem;">
-        ${tracked ? '★' : '☆'}
-      </button>
+      <button id="jsound-btn-${npc.id}" class="ptj-toggle" title="Set alert sound" onclick="toggleJobSoundPanel(${npc.id})"
+        style="color:${hasSnd ? 'var(--teal)' : 'var(--text-dim)'}; font-size:1rem;">🎵</button>
+      <button class="ptj-toggle" title="${tracked ? 'Untrack' : 'Track'}" onclick="toggleTracked(${npc.id})"
+        style="color:${tracked ? 'var(--gold)' : 'var(--text-dim)'}; font-size:1.1rem;">${tracked ? '★' : '☆'}</button>
+      <div id="jsound-panel-${npc.id}" style="display:none; width:100%; margin-top:10px; padding:10px 12px; background:var(--bg); border-radius:8px; border:1px solid var(--border);">
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:6px;">🎵 Alert sound for <strong>${escHtml(npc.name)}</strong></div>
+        <div id="jsound-lbl-${npc.id}" style="font-size:0.72rem; color:var(--text-dim); font-style:italic; margin-bottom:8px;">${soundName || 'Using global sound'}</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <label class="btn btn-outline" style="cursor:pointer; font-size:0.72rem; padding:5px 10px;">
+            📂 Upload
+            <input type="file" accept="audio/*" style="display:none;" onchange="handleJobSoundUpload(this, ${npc.id})">
+          </label>
+          <button class="btn btn-outline" onclick="playJobSound(${npc.id})" style="font-size:0.72rem; padding:5px 10px;">▶ Preview</button>
+          <button class="btn btn-danger" onclick="clearJobSound(${npc.id})" style="font-size:0.72rem; padding:5px 10px;">✕ Clear</button>
+        </div>
+      </div>
     `;
     list.appendChild(li);
   });
@@ -1101,7 +1206,7 @@ function checkPTJNotifications(h, m) {
       const keyRemind = `ptj_remind_${npc.id}_${totalErinnDays}`;
       if (!lastNotifiedEvents[keyRemind] && nowMins >= remindTrigger && nowMins < remindTrigger + 2) {
         lastNotifiedEvents[keyRemind] = true;
-        sendNotification(`⏰ ${npc.name} hiring soon`, `Job opens in ${remindBefore}h Erinn time (${npc.loc} · ${npc.shop})`);
+        sendNotification(`⏰ ${npc.name} hiring soon`, `Job opens in ${remindBefore}h Erinn time (${npc.loc} · ${npc.shop})`, npc.id);
       }
     }
 
@@ -1109,7 +1214,7 @@ function checkPTJNotifications(h, m) {
     const keyOpen = `ptj_open_${npc.id}_${totalErinnDays}`;
     if (!lastNotifiedEvents[keyOpen] && nowMins >= startMins && nowMins < startMins + 2) {
       lastNotifiedEvents[keyOpen] = true;
-      sendNotification(`💼 ${npc.name} is hiring!`, `Report by ${fmtH(npc.endH)} · ${npc.loc} · ${npc.shop}`);
+      sendNotification(`💼 ${npc.name} is hiring!`, `Report by ${fmtH(npc.endH)} · ${npc.loc} · ${npc.shop}`, npc.id);
     }
   });
 }
@@ -1231,8 +1336,13 @@ function requestNotifPerms() {
   });
 }
 
-function sendNotification(title, body) {
-  playNotifSound();
+function sendNotification(title, body, npcId = null) {
+  // Play per-job sound if set, otherwise global
+  if (npcId !== null && jobSounds[npcId]) {
+    playJobSound(npcId);
+  } else {
+    playNotifSound();
+  }
   flashTab(title);
   // Desktop
   if (Notification.permission === 'granted' && document.getElementById('setting-desktop')?.checked) {
@@ -1440,6 +1550,7 @@ function clearAllData() {
 function init() {
   loadOffset();
   loadCustomSound();
+  loadJobSounds();
   loadSettings();
   renderPTJList();
 
