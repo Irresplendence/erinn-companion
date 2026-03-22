@@ -709,6 +709,20 @@
         <button class="btn btn-teal" onclick="testNtfy()">📱 Test Phone Notification</button>
         <button class="btn btn-outline" onclick="requestNotifPerms()">🔔 Enable Desktop</button>
       </div>
+
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px; font-style:italic;">🎵 Alert Sound</div>
+        <div style="font-size:0.78rem; color:var(--text-dim); margin-bottom:10px;" id="sound-filename">No custom sound — using default chime</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <label class="btn btn-outline" style="cursor:pointer; font-size:0.75rem; padding:7px 14px;">
+            📂 Upload Sound
+            <input type="file" accept="audio/*" style="display:none;" onchange="handleSoundUpload(this)">
+          </label>
+          <button class="btn btn-outline" onclick="playNotifSound()" style="font-size:0.75rem;">▶ Preview</button>
+          <button class="btn btn-danger" onclick="clearCustomSound()" style="font-size:0.75rem;">✕ Clear</button>
+        </div>
+        <div style="font-size:0.72rem; color:var(--text-dim); margin-top:8px; font-style:italic;">Supports MP3, WAV, OGG. Saved in your browser.</div>
+      </div>
     </div>
 
     <div class="card">
@@ -1219,6 +1233,7 @@ function requestNotifPerms() {
 
 function sendNotification(title, body) {
   playNotifSound();
+  flashTab(title);
   // Desktop
   if (Notification.permission === 'granted' && document.getElementById('setting-desktop')?.checked) {
     try { new Notification(title, { body, icon: '⚔' }); } catch(e) {}
@@ -1240,22 +1255,116 @@ function testNtfy() {
   sendNotification('⚔ Erinn Companion', 'Test notification from your Mabinogi dashboard!');
 }
 
-// Simple beep using Web Audio API
+// ── Audio ──
 let audioCtx = null;
+let customAudioBuffer = null;
+let customAudioB64 = null;
+
+function loadCustomSound() {
+  try {
+    const b64 = localStorage.getItem('erinn_sound');
+    if (b64) {
+      customAudioB64 = b64;
+      decodeB64Audio(b64);
+      const nameEl = document.getElementById('sound-filename');
+      const saved = localStorage.getItem('erinn_sound_name') || 'Custom sound loaded';
+      if (nameEl) nameEl.textContent = saved;
+    }
+  } catch(e) {}
+}
+
+function decodeB64Audio(b64) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const raw = b64.includes(',') ? b64.split(',')[1] : b64;
+    const binary = atob(raw);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    audioCtx.decodeAudioData(bytes.buffer, buf => { customAudioBuffer = buf; });
+  } catch(e) {}
+}
+
+function handleSoundUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result;
+    try {
+      localStorage.setItem('erinn_sound', b64);
+      localStorage.setItem('erinn_sound_name', file.name);
+    } catch(err) {
+      showToast('File too large for storage — works this session only');
+    }
+    customAudioB64 = b64;
+    decodeB64Audio(b64);
+    const nameEl = document.getElementById('sound-filename');
+    if (nameEl) nameEl.textContent = file.name;
+    showToast('🎵 Custom sound loaded! Testing…');
+    setTimeout(playNotifSound, 300);
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearCustomSound() {
+  customAudioBuffer = null;
+  customAudioB64 = null;
+  localStorage.removeItem('erinn_sound');
+  localStorage.removeItem('erinn_sound_name');
+  const nameEl = document.getElementById('sound-filename');
+  if (nameEl) nameEl.textContent = 'No custom sound — using default chime';
+  showToast('🔕 Custom sound cleared');
+}
+
 function playNotifSound() {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-    osc.frequency.setValueAtTime(660, audioCtx.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.4);
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (customAudioBuffer) {
+      const source = audioCtx.createBufferSource();
+      source.buffer = customAudioBuffer;
+      source.connect(audioCtx.destination);
+      source.start(0);
+      return;
+    }
+    // Default: two-chime melody
+    const playChime = (t) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1046, t);
+      osc.frequency.setValueAtTime(1318, t + 0.1);
+      osc.frequency.setValueAtTime(1568, t + 0.2);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.35, t + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+      osc.start(t); osc.stop(t + 0.6);
+    };
+    playChime(audioCtx.currentTime);
+    playChime(audioCtx.currentTime + 0.65);
   } catch(e) {}
+}
+
+// ── Tab flash ──
+let tabFlashInterval = null;
+const ORIGINAL_TITLE = document.title;
+
+function flashTab(msg) {
+  if (document.hasFocus()) return;
+  let on = true;
+  if (tabFlashInterval) clearInterval(tabFlashInterval);
+  tabFlashInterval = setInterval(() => {
+    document.title = on ? `🔔 ${msg}` : ORIGINAL_TITLE;
+    on = !on;
+  }, 800);
+  const stop = () => {
+    clearInterval(tabFlashInterval);
+    tabFlashInterval = null;
+    document.title = ORIGINAL_TITLE;
+    window.removeEventListener('focus', stop);
+  };
+  window.addEventListener('focus', stop);
 }
 
 // ═══════════════════════════════════════════════
@@ -1330,6 +1439,7 @@ function clearAllData() {
 // ═══════════════════════════════════════════════
 function init() {
   loadOffset();
+  loadCustomSound();
   loadSettings();
   renderPTJList();
 
